@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title><%= $title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div id="name-overlay">
+        <div class="name-box">
+            <h3>Welcome to the Chat</h3>
+            <p>Please enter your name to join:</p>
+            <input type="text" id="name-input" placeholder="Your name..." maxlength="15">
+            <button onclick="joinChat()">Join Chat</button>
+        </div>
+    </div>
+
+    <header>Online Chat App</header>
+    <div id="main">
+        <div id="chat-container">
+            <div id="chat"></div>
+            <div id="controls">
+                <input type="text" id="msg" placeholder="Press Enter..." onkeypress="if(event.key=='Enter')send()">
+                <button onclick="send()">Send</button>
+            </div>
+        </div>
+        <div id="sidebar">
+            <strong>Online Users</strong>
+            <ul id="user-list"></ul>
+        </div>
+    </div>
+
+    <script src="/js/chat.js"></script>
+</body>
+</html>
