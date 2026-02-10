@@ -30,10 +30,22 @@ redis-cli -h 127.0.0.1 -p 6379 ping
 
 <br>
 
-Finally start the application:
+## Terminal 1
 
 <br>
 
 ```bash
-perl chat-server-v2.pl daemon
+perl chat-server-v2.pl daemon -l http://*:3000
 ```
+
+## Terminal 2
+
+<br>
+
+```bash
+perl chat-server-v2.pl daemon -l http://*:3001
+```
+
+<br>
+
+Open browsers to both ports - users on different ports can now chat!
