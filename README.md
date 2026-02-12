@@ -151,3 +151,14 @@ $ perl chat-server-v3.pl daemon -l http://*:3001
 <br>
 
 Once again, open browsers to both ports, users on different ports can now chat to each other.
+
+<br>
+
+## 4. Chat Server v4 using PAGI and PostgreSQL database
+***
+
+Start chat server as below:
+
+```bash
+$ perl chat-server-v4.pl
+```
