@@ -1,13 +1,13 @@
-### [**1. Single Process Chat Server with Mojo**](#single-process-chat-server-with-mojo)
-### [**2. Multi Process Chat Server with Redis**](#multi-process-chat-server-with-redis)
-### [**3. Multi Process Chat Server with PostgreSQL**](#multi-process-chat-server-with-postgresql)
-### [**4. Chat Server with PAGI**](#chat-server-with-pagi)
-### [**5. Chat Server with Thunderhorse**](#chat-server-with-thunderhorse)
+## Table of Content
+- [1. Single Process Chat Server with Mojo](#single-process-chat-server-with-mojo)
+- [2. Multi Process Chat Server with Redis](#multi-process-chat-server-with-redis)
+- [3. Multi Process Chat Server with PostgreSQL](#multi-process-chat-server-with-postgresql)
+- [4. Chat Server with PAGI](#chat-server-with-pagi)
+- [5. Chat Server with Thunderhorse](#chat-server-with-thunderhorse)
 
 ***
 
 ## 1. Single Process Chat Server with Mojo
-***
 
 Start chat server as below:
 
@@ -20,7 +20,6 @@ $ perl chat-server.pl daemon
 ```
 
 ## 2. Multi Process Chat Server with Redis
-***
 
 For this, We need Redis running locally. Luckily I had docker container running Valkey.
 
@@ -69,7 +68,6 @@ Now open browsers to both ports, users on different ports can now chat to each o
 <br>
 
 ## 3. Multi Process Chat Server with PostgreSQL
-***
 
 Well, we need PostgreSQL database now and I am not willing to setup database from scratch.
 
@@ -171,7 +169,6 @@ Once again, open browsers to both ports, users on different ports can now chat t
 <br>
 
 ## Chat Server with PAGI
-***
 
 Start chat server as below:
 
@@ -186,7 +183,6 @@ $ perl chat-server-v4.pl
 <br>
 
 ## Chat Server with Thunderhorse
-***
 
 To run this server, we need **Perl v5.40** as enforced by [**Thunderhorse**](https://metacpan.org/dist/Thunderhorse),
 
