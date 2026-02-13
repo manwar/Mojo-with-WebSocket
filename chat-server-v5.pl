@@ -201,7 +201,6 @@ sub build ($self) {
                             });
                         }
                     }
-
                 }
                 # Handle chat messages
                 elsif ($data->{type} eq 'message') {
