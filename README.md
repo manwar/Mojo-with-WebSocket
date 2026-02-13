@@ -1,13 +1,25 @@
-## 1. Single Process Chat Server
+### [**1. Single Process Chat Server with Mojo**](#single-process-chat-server-with-mojo)
+### [**2. Multi Process Chat Server with Redis**](#multi-process-chat-server-with-redis)
+### [**3. Multi Process Chat Server with PostgreSQL**](#multi-process-chat-server-with-postgresql)
+### [**4. Chat Server with PAGI**](#chat-server-with-pagi)
+### [**5. Chat Server with Thunderhorse**](#chat-server-with-thunderhorse)
+
+***
+
+## 1. Single Process Chat Server with Mojo
 ***
 
 Start chat server as below:
+
+<br>
+
+[**Source**](https://github.com/manwar/Mojo-with-WebSocket/blob/master/chat-server.pl)
 
 ```bash
 $ perl chat-server.pl daemon
 ```
 
-## 2. Multi-process Chat Server v2 using Redis
+## 2. Multi Process Chat Server with Redis
 ***
 
 For this, We need Redis running locally. Luckily I had docker container running Valkey.
@@ -38,6 +50,8 @@ Time to start the chat server listening to port **3000** like below:
 
 <br>
 
+[**Source**](https://github.com/manwar/Mojo-with-WebSocket/blob/master/chat-server-v2.pl)
+
 ```bash
 $ perl chat-server-v2.pl daemon -l http://*:3000
 ```
@@ -54,7 +68,7 @@ Now open browsers to both ports, users on different ports can now chat to each o
 
 <br>
 
-## 3. Multi-process Chat Server v3 using PostgreSQL database
+## 3. Multi Process Chat Server with PostgreSQL
 ***
 
 Well, we need PostgreSQL database now and I am not willing to setup database from scratch.
@@ -138,6 +152,8 @@ Let's start two chat servers listening to port **3000** and **3001**.
 
 <br>
 
+[**Source**](https://github.com/manwar/Mojo-with-WebSocket/blob/master/chat-server-v3.pl)
+
 ```bash
 $ perl chat-server-v3.pl daemon -l http://*:3000
 ```
@@ -154,11 +170,32 @@ Once again, open browsers to both ports, users on different ports can now chat t
 
 <br>
 
-## 4. Chat Server v4 using PAGI and PostgreSQL database
+## Chat Server with PAGI
 ***
 
 Start chat server as below:
 
+<br>
+
+[**Source**](https://github.com/manwar/Mojo-with-WebSocket/blob/master/chat-server-v4.pl)
+
 ```bash
 $ perl chat-server-v4.pl
+```
+
+<br>
+
+## Chat Server with Thunderhorse
+***
+
+To run this server, we need **Perl v5.40** as enforced by [**Thunderhorse**](https://metacpan.org/dist/Thunderhorse),
+
+You will also need [**PAGI**](https://metacpan.org/pod/PAGI).
+
+<br>
+
+[**Source**](https://github.com/manwar/Mojo-with-WebSocket/blob/master/chat-server-v5.pl)
+
+```bash
+$ pagi-server --port 3000 chat-server-v5.pl
 ```
