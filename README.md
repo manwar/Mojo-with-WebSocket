@@ -168,7 +168,7 @@ Once again, open browsers to both ports, users on different ports can now chat t
 
 <br>
 
-## Chat Server with PAGI
+## 4. Chat Server with PAGI
 
 Start chat server as below:
 
@@ -182,7 +182,7 @@ $ perl chat-server-v4.pl
 
 <br>
 
-## Chat Server with Thunderhorse
+## 5. Chat Server with Thunderhorse
 
 To run this server, we need **Perl v5.40** as enforced by [**Thunderhorse**](https://metacpan.org/dist/Thunderhorse),
 
