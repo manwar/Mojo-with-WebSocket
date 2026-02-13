@@ -21,7 +21,7 @@ $ perl chat-server.pl daemon
 
 ## 2. Chat Server with Redis
 
-For this, We need Redis running locally. Luckily I had docker container running Valkey.
+For this, we need Redis running locally. Luckily I had docker container running Valkey.
 
 First start the Valkey container as below:
 
