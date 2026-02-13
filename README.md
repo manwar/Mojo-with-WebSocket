@@ -1,9 +1,9 @@
 ## Table of Content
-- [1. Single Process Chat Server with Mojo](#single-process-chat-server-with-mojo)
-- [2. Multi Process Chat Server with Redis](#multi-process-chat-server-with-redis)
-- [3. Multi Process Chat Server with PostgreSQL](#multi-process-chat-server-with-postgresql)
-- [4. Chat Server with PAGI](#chat-server-with-pagi)
-- [5. Chat Server with Thunderhorse](#chat-server-with-thunderhorse)
+- [1. Single Process Chat Server with Mojo](#1-single-process-chat-server-with-mojo)
+- [2. Multi Process Chat Server with Redis](#2-multi-process-chat-server-with-redis)
+- [3. Multi Process Chat Server with PostgreSQL](#3-multi-process-chat-server-with-postgresql)
+- [4. Chat Server with PAGI](#4-chat-server-with-pagi)
+- [5. Chat Server with Thunderhorse](#5-chat-server-with-thunderhorse)
 
 ***
 
