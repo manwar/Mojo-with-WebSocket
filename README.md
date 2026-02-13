@@ -1,13 +1,13 @@
 ## Table of Content
-- [1. Single Process Chat Server with Mojo](#1-single-process-chat-server-with-mojo)
-- [2. Multi Process Chat Server with Redis](#2-multi-process-chat-server-with-redis)
-- [3. Multi Process Chat Server with PostgreSQL](#3-multi-process-chat-server-with-postgresql)
+- [1. Chat Server with Mojo](#1-chat-server-with-mojo)
+- [2. Chat Server with Redis](#2-chat-server-with-redis)
+- [3. Chat Server with PostgreSQL](#3-chat-server-with-postgresql)
 - [4. Chat Server with PAGI](#4-chat-server-with-pagi)
 - [5. Chat Server with Thunderhorse](#5-chat-server-with-thunderhorse)
 
 ***
 
-## 1. Single Process Chat Server with Mojo
+## 1. Chat Server with Mojo
 
 Start chat server as below:
 
@@ -19,7 +19,7 @@ Start chat server as below:
 $ perl chat-server.pl daemon
 ```
 
-## 2. Multi Process Chat Server with Redis
+## 2. Chat Server with Redis
 
 For this, We need Redis running locally. Luckily I had docker container running Valkey.
 
@@ -67,7 +67,7 @@ Now open browsers to both ports, users on different ports can now chat to each o
 
 <br>
 
-## 3. Multi Process Chat Server with PostgreSQL
+## 3. Chat Server with PostgreSQL
 
 Well, we need PostgreSQL database now and I am not willing to setup database from scratch.
 
