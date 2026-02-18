@@ -21,9 +21,59 @@ $ perl chat-server.pl daemon
 
 ## 2. Chat Server with Redis
 
-For this, we need Redis running locally. Luckily I had docker container running Valkey.
+I was introduced to **JSON Virtual Frame** and **JSON Virtual Event** when I shared the previous version of chat server.
 
-First start the Valkey container as below:
+To be honest, I had no clue about any of them, so I dig deep and found this:
+
+### JSON Virtual Frame
+
+This is a special way to structure data when you send a message through a **WebSocket**. Instead of manually converting a Perl data structure into a **JSON** string, you use the **json** key in the hash you pass to the **send()** method.
+
+**How it works?**
+
+When you call **$tx->send({json => $data})**, the **build_message** method in [**Mojo::Transaction::WebSocket**](https://metacpan.org/pod/Mojo::Transaction::WebSocket) intercepts this. It automatically calls **Mojo::JSON::encode_json** to serialise your Perl **$data** into a **JSON** text string. It then sends this string as a standard **WebSocket** text frame.
+
+**Why use it?**
+
+It makes your sending code cleaner and less error-prone by removing the manual **encode_json** step.
+
+**Example:**
+
+```perl
+# Instead of doing this manually:
+use Mojo::JSON 'encode_json';
+$tx->send({text => encode_json({message => 'Hello', user => 123})});
+
+# You can do this directly:
+$tx->send({json => {message => 'Hello', user => 123}});
+```
+
+### JSON Virtual Event
+
+This is a special event you can listen for on the **WebSocket** transaction. When a complete **WebSocket** message arrives, if the **json** event has any subscribers (i.e., you have an **on(json => ...)** callback), the transaction will automatically attempt to decode the message payload from **JSON**.
+
+**How it works?**
+
+When a message is fully assembled (in **parse_message**), it checks if there are any subscribers for the **json** event. If there are, it passes the raw message through **Mojo::JSON::j()** (which is context-aware and decodes **JSON**). The decoded Perl data structure is then emitted to your callback.
+
+**Note:** This event is only emitted if you are listening for it. This ensures you don't incur the performance cost of decoding **JSON** if you don't need it. It can decode both text and binary messages, as long as they contain valid **JSON**.
+
+**Example:**
+
+```perl
+$tx->on(json => sub {
+  my ($tx, $received_data) = @_;
+  say "Received message: " . $received_data->{message};
+});
+```
+
+I have applied both in this version.
+
+For this version of chat server, we need **Redis** running locally. Luckily I had docker container running **Valkey**.
+
+If you don't know **Valkey**, then I suggest you take a look at this [**blog post**](https://theweeklychallenge.org/blog/caching-in-perl) of mine.
+
+First start the **Valkey** container as below:
 
 <br>
 
