@@ -1,10 +1,9 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
     container_name: chat_postgres
-    restart: unless-stopped
+    restart: "no"
+    #restart: unless-stopped
     environment:
       POSTGRES_USER: chatuser
       POSTGRES_PASSWORD: chatpass
