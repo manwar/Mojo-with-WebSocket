@@ -1,13 +1,13 @@
-### [**1. Single Process Chat Server with Mojo**](#single-process-chat-server-with-mojo)
-### [**2. Multi Process Chat Server with Redis**](#multi-process-chat-server-with-redis)
-### [**3. Multi Process Chat Server with PostgreSQL**](#multi-process-chat-server-with-postgresql)
-### [**4. Chat Server with PAGI**](#chat-server-with-pagi)
-### [**5. Chat Server with Thunderhorse**](#chat-server-with-thunderhorse)
+## Table of Content
+- [1. Chat Server with Mojo](#1-chat-server-with-mojo)
+- [2. Chat Server with Redis](#2-chat-server-with-redis)
+- [3. Chat Server with PostgreSQL](#3-chat-server-with-postgresql)
+- [4. Chat Server with PAGI](#4-chat-server-with-pagi)
+- [5. Chat Server with Thunderhorse](#5-chat-server-with-thunderhorse)
 
 ***
 
-## 1. Single Process Chat Server with Mojo
-***
+## 1. Chat Server with Mojo
 
 Start chat server as below:
 
@@ -19,12 +19,61 @@ Start chat server as below:
 $ perl chat-server.pl daemon
 ```
 
-## 2. Multi Process Chat Server with Redis
-***
+## 2. Chat Server with Redis
 
-For this, We need Redis running locally. Luckily I had docker container running Valkey.
+I was introduced to **JSON Virtual Frame** and **JSON Virtual Event** when I shared the previous version of chat server.
 
-First start the Valkey container as below:
+To be honest, I had no clue about any of them, so I dig deep and found this:
+
+### JSON Virtual Frame
+
+This is a special way to structure data when you send a message through a **WebSocket**. Instead of manually converting a Perl data structure into a **JSON** string, you use the **json** key in the hash you pass to the **send()** method.
+
+**How it works?**
+
+When you call **$tx->send({json => $data})**, the **build_message** method in [**Mojo::Transaction::WebSocket**](https://metacpan.org/pod/Mojo::Transaction::WebSocket) intercepts this. It automatically calls **Mojo::JSON::encode_json** to serialise your Perl **$data** into a **JSON** text string. It then sends this string as a standard **WebSocket** text frame.
+
+**Why use it?**
+
+It makes your sending code cleaner and less error-prone by removing the manual **encode_json** step.
+
+**Example:**
+
+```perl
+# Instead of doing this manually:
+use Mojo::JSON 'encode_json';
+$tx->send({text => encode_json({message => 'Hello', user => 123})});
+
+# You can do this directly:
+$tx->send({json => {message => 'Hello', user => 123}});
+```
+
+### JSON Virtual Event
+
+This is a special event you can listen for on the **WebSocket** transaction. When a complete **WebSocket** message arrives, if the **json** event has any subscribers (i.e., you have an **on(json => ...)** callback), the transaction will automatically attempt to decode the message payload from **JSON**.
+
+**How it works?**
+
+When a message is fully assembled (in **parse_message**), it checks if there are any subscribers for the **json** event. If there are, it passes the raw message through **Mojo::JSON::j()** (which is context-aware and decodes **JSON**). The decoded Perl data structure is then emitted to your callback.
+
+**Note:** This event is only emitted if you are listening for it. This ensures you don't incur the performance cost of decoding **JSON** if you don't need it. It can decode both text and binary messages, as long as they contain valid **JSON**.
+
+**Example:**
+
+```perl
+$tx->on(json => sub {
+  my ($tx, $received_data) = @_;
+  say "Received message: " . $received_data->{message};
+});
+```
+
+I have applied both in this version.
+
+For this version of chat server, we need **Redis** running locally. Luckily I had docker container running **Valkey**.
+
+If you don't know **Valkey**, then I suggest you take a look at this [**blog post**](https://theweeklychallenge.org/blog/caching-in-perl) of mine.
+
+First start the **Valkey** container as below:
 
 <br>
 
@@ -68,8 +117,7 @@ Now open browsers to both ports, users on different ports can now chat to each o
 
 <br>
 
-## 3. Multi Process Chat Server with PostgreSQL
-***
+## 3. Chat Server with PostgreSQL
 
 Well, we need PostgreSQL database now and I am not willing to setup database from scratch.
 
@@ -170,8 +218,7 @@ Once again, open browsers to both ports, users on different ports can now chat t
 
 <br>
 
-## Chat Server with PAGI
-***
+## 4. Chat Server with PAGI
 
 Start chat server as below:
 
@@ -185,8 +232,7 @@ $ perl chat-server-v4.pl
 
 <br>
 
-## Chat Server with Thunderhorse
-***
+## 5. Chat Server with Thunderhorse
 
 To run this server, we need **Perl v5.40** as enforced by [**Thunderhorse**](https://metacpan.org/dist/Thunderhorse),
 
