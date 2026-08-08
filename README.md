@@ -4,6 +4,7 @@
 - [3. Chat Server with PostgreSQL](#3-chat-server-with-postgresql)
 - [4. Chat Server with PAGI](#4-chat-server-with-pagi)
 - [5. Chat Server with Thunderhorse](#5-chat-server-with-thunderhorse)
+- [6. Chat Server with PAGI::FastAPI](#6-chat-server-with-pagi-fastapi)
 
 ***
 
@@ -245,3 +246,25 @@ You will also need [**PAGI**](https://metacpan.org/pod/PAGI).
 ```bash
 $ pagi-server --port 3000 chat-server-v5.pl
 ```
+
+## 6. Chat Server with PAGI::FastAPI
+
+To run this server, we need **Perl v5.36+** as enforced by [**PAGI::FastAPI v0.0.6**](https://metacpan.org/dist/PAGI-FastAPI).
+
+The chat server depends of `PostgreSQL` database, so let's start the container:
+
+```bash
+$ docker compose up -d
+```
+
+Then start the chat server:
+
+```bash
+$ pagi-server chat-server-v6.pl
+```
+
+<br>
+
+[**Source**](https://github.com/manwar/Mojo-with-WebSocket/blob/master/chat-server-v6.pl)
+
+
