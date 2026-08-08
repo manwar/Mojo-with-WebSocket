@@ -1,7 +1,42 @@
 #!/usr/bin/env perl
 
+# REQUIRED RUNTIME SETUP - READ BEFORE RUNNING
+#
+# This app uses Mojo::Pg in non-blocking mode, which runs on Mojo::IOLoop,
+# a different reactor from the IO::Async::Loop this app (and pagi-server)
+# run on. Without both of the following, every DB call hangs forever and
+# the app fails after PAGI::Server's 30s lifespan-startup timeout:
+#
+#   1. Install IO::Async::Loop::EV:
+#        cpanm IO::Async::Loop::EV
+#      (plain EV being installed is NOT enough, IO::Async::Loop->new does
+#      not auto-prefer EV on its own; it must be told to, via #2 below.)
+#
+#   2. Set IO_ASYNC_LOOP=EV for the whole process when you launch it:
+#        IO_ASYNC_LOOP=EV pagi-server chat-server-v6.pl
+#      This is required even though pagi-server, not this script, is what
+#      actually constructs the IO::Async::Loop, the env var is what steers
+#      pagi-server's own choice of reactor too.
+#
+# See PAGI::FastAPI's "MIXING WITH OTHER EVENT LOOPS" documentation section
+# for the full explanation.
+
 use v5.36;
 use Encode qw(encode);
+use EV;
+
+# Fail fast with a clear message rather than hanging for 30s and dying with
+# an opaque lifespan-timeout error if someone runs this without the env var.
+die <<'MSG' unless ($ENV{IO_ASYNC_LOOP} // '') eq 'EV';
+FATAL: IO_ASYNC_LOOP=EV is not set.
+
+This app's Mojo::Pg calls will hang forever without it, see the comment
+block at the top of this file for why, and re-run as:
+
+    IO_ASYNC_LOOP=EV pagi-server chat-server-v6.pl
+MSG
+
+use Future;
 use Future::AsyncAwait;
 use IO::Async::Loop;
 use IO::Async::Timer::Periodic;
@@ -24,13 +59,22 @@ my @history    = ();
 my $process_id = sprintf "%p", \$pg;
 my $cleanup_timer;
 
-$pg->db->query(q{
-    CREATE TABLE IF NOT EXISTS chat_users (
-        session_id TEXT PRIMARY KEY,
-        username   TEXT NOT NULL,
-        last_seen  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-});
+# Mojo::Pg non-blocking query bridge: wraps the callback-style
+# $pg->db->query($sql, @binds, sub {...})  API in a Future, so
+# it can be awaited like any other async call.
+# Requires the shared EV reactor set up above, see the comment
+# there.
+
+async sub pg_query {
+    my @args = @_;
+    my $f = Future->new;
+    $pg->db->query(@args, sub {
+        my ($db, $err, $results) = @_;
+        if ($err) { $f->fail($err) }
+        else      { $f->done($results) }
+    });
+    return await $f;
+}
 
 $app->mount('/css', PAGI::App::File->new(root => './public/css')->to_app);
 $app->mount('/js',  PAGI::App::File->new(root => './public/js')->to_app);
@@ -61,13 +105,15 @@ $app->websocket('/chat',
             interval => 30,
             on_tick  => sub {
                 return unless $clients->{$id};
-                eval {
-                    $pg->db->query(q{
+                # on_tick is a plain (non-async) callback, so we can't await
+                # here directly, fire the query and swallow any failure.
+                (async sub {
+                    await pg_query(q{
                         UPDATE chat_users
                         SET last_seen = NOW()
                         WHERE session_id = ?
                     }, $id);
-                };
+                })->()->else(sub { Future->done })->retain;
             }
         );
         $loop->add($heartbeat_timer);
@@ -91,7 +137,7 @@ $app->websocket('/chat',
             elsif ($data->{type} eq 'join') {
                 $clients->{$id}{name} = $data->{name};
 
-                $pg->db->query(q{
+                await pg_query(q{
                     INSERT INTO chat_users (session_id, username, last_seen)
                     VALUES (?, ?, NOW())
                     ON CONFLICT (session_id)
@@ -132,7 +178,7 @@ $app->websocket('/chat',
         delete $clients->{$id};
         $heartbeat_timer->stop;
         $loop->remove($heartbeat_timer);
-        $pg->db->query(q{DELETE FROM chat_users WHERE session_id = ?}, $id);
+        await pg_query(q{DELETE FROM chat_users WHERE session_id = ?}, $id);
         await broadcast({ type => 'system', text => "$name left" });
         await send_user_list();
     }
@@ -141,15 +187,23 @@ $app->websocket('/chat',
 $app->on_startup(async sub {
     print "Server starting up...\n";
 
+    await pg_query(q{
+        CREATE TABLE IF NOT EXISTS chat_users (
+            session_id TEXT PRIMARY KEY,
+            username   TEXT NOT NULL,
+            last_seen  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    });
+
     $cleanup_timer = IO::Async::Timer::Periodic->new(
         interval => 60,
         on_tick  => sub {
-            eval {
-                $pg->db->query(q{
+            (async sub {
+                await pg_query(q{
                     DELETE FROM chat_users
                     WHERE last_seen < NOW() - INTERVAL '2 minutes'
                 });
-            };
+            })->()->else(sub { Future->done })->retain;
         }
     );
     $loop->add($cleanup_timer);
@@ -202,12 +256,12 @@ async sub broadcast ($msg, $exclude_id = undef) {
 
 async sub send_user_list {
     eval {
-        $pg->db->query(q{
+        await pg_query(q{
             DELETE FROM chat_users
             WHERE last_seen < NOW() - INTERVAL '2 minutes'
         });
 
-        my $results = $pg->db->query(q{
+        my $results = await pg_query(q{
             SELECT DISTINCT username
             FROM chat_users
             ORDER BY username
