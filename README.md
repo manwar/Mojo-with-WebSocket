@@ -249,15 +249,17 @@ $ pagi-server --port 3000 chat-server-v5.pl
 
 ## 6. Chat Server with PAGI::FastAPI
 
-To run this server, we need **Perl v5.36+** as enforced by [**PAGI::FastAPI v0.0.6**](https://metacpan.org/dist/PAGI-FastAPI).
+To run this server, we need **Perl v5.36+** as enforced by [**PAGI::FastAPI**](https://metacpan.org/dist/PAGI-FastAPI).
 
-The chat server depends of `PostgreSQL` database, so let's start the container:
+WebSocket support is provided by `v0.0.6` or above of `PAGI::FastAPI`.
+
+The chat server depends on `PostgreSQL` database, so let's start the container:
 
 ```bash
 $ docker compose up -d
 ```
 
-Then start the chat server:
+Then start the chat server as below:
 
 ```bash
 $ pagi-server chat-server-v6.pl
