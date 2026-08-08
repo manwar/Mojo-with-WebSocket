@@ -4,7 +4,7 @@
 - [3. Chat Server with PostgreSQL](#3-chat-server-with-postgresql)
 - [4. Chat Server with PAGI](#4-chat-server-with-pagi)
 - [5. Chat Server with Thunderhorse](#5-chat-server-with-thunderhorse)
-- [6. Chat Server with PAGI::FastAPI](#6-chat-server-with-pagi-fastapi)
+- [6. Chat Server with PAGI::FastAPI](#6-chat-server-with-pagifastapi)
 
 ***
 
