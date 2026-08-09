@@ -19,7 +19,11 @@
 #      pagi-server's own choice of reactor too.
 #
 # See PAGI::FastAPI's "MIXING WITH OTHER EVENT LOOPS" documentation section
-# for the full explanation.
+# for the full explanation.Note this requirement is about Mojo::Pg
+# specifically, not about anything below: this script itself no longer
+# touches IO::Async directly at all, see the heartbeat/cleanup loops below,
+# which use Future::IO instead, so they aren't tied to whichever backend
+# PAGI::Server happens to run on.
 
 use v5.36;
 use Encode qw(encode);
@@ -38,8 +42,7 @@ MSG
 
 use Future;
 use Future::AsyncAwait;
-use IO::Async::Loop;
-use IO::Async::Timer::Periodic;
+use Future::IO;
 use PAGI::App::File;
 use PAGI::FastAPI;
 use Mojo::Pg;
@@ -54,10 +57,13 @@ my $loop   = IO::Async::Loop->new;
 my $pg     = Mojo::Pg->new('postgresql://chatuser:chatpass@localhost/chat_db');
 my $pubsub = $pg->pubsub;
 
-my $clients    = {};
-my @history    = ();
-my $process_id = sprintf "%p", \$pg;
-my $cleanup_timer;
+my $clients       = {};
+my @history       = ();
+my $process_id    = sprintf "%p", \$pg;
+my $shutting_down = 0;
+my $query_counter = 0;
+my %active_sleeps;    # key => outstanding Future::IO->sleep Future, for instant shutdown
+my %inflight_queries; # id  => outstanding pg_query Future, so shutdown can wait for them
 
 # Mojo::Pg non-blocking query bridge: wraps the callback-style
 # $pg->db->query($sql, @binds, sub {...})  API in a Future, so
@@ -67,13 +73,24 @@ my $cleanup_timer;
 
 async sub pg_query {
     my @args = @_;
-    my $f = Future->new;
+    my $qid  = ++$query_counter;
+    my $f    = Future->new;
+    $inflight_queries{$qid} = $f;
+    $f->on_ready(sub { delete $inflight_queries{$qid} });
     $pg->db->query(@args, sub {
         my ($db, $err, $results) = @_;
         if ($err) { $f->fail($err) }
         else      { $f->done($results) }
     });
+
     return await $f;
+}
+
+async sub wait_for_inflight_queries ($timeout = 5) {
+    my $deadline = time() + $timeout;
+    while (%inflight_queries && time() < $deadline) {
+        await Future::IO->sleep(0.1);
+    }
 }
 
 $app->mount('/css', PAGI::App::File->new(root => './public/css')->to_app);
@@ -100,24 +117,13 @@ $app->websocket('/chat',
         my $id = "$ws";
         $clients->{$id} = { ws => $ws, name => 'Anonymous' };
 
-        # Heartbeat timer (30 seconds)
-        my $heartbeat_timer = IO::Async::Timer::Periodic->new(
-            interval => 30,
-            on_tick  => sub {
-                return unless $clients->{$id};
-                # on_tick is a plain (non-async) callback, so we can't await
-                # here directly, fire the query and swallow any failure.
-                (async sub {
-                    await pg_query(q{
-                        UPDATE chat_users
-                        SET last_seen = NOW()
-                        WHERE session_id = ?
-                    }, $id);
-                })->()->else(sub { Future->done })->retain;
-            }
-        );
-        $loop->add($heartbeat_timer);
-        $heartbeat_timer->start;
+        # Heartbeat: keeps this connection's last_seen fresh in Postgres
+        # for cross-process presence. Future::IO->sleep is loop-agnostic,
+        # no IO::Async::Loop object of our own is needed, since it delegates
+        # to whatever Future::IO backend is already configured (PAGI::Server
+        # provides one). The loop naturally stops once $clients->{$id} is
+        # deleted on disconnect below, no explicit timer teardown needed.
+        heartbeat_loop($id)->else(sub { Future->done })->retain;
 
         # Handle incoming messages
         while (1) {
@@ -176,8 +182,6 @@ $app->websocket('/chat',
         # Cleanup on disconnect
         my $name = $clients->{$id}{name};
         delete $clients->{$id};
-        $heartbeat_timer->stop;
-        $loop->remove($heartbeat_timer);
         await pg_query(q{DELETE FROM chat_users WHERE session_id = ?}, $id);
         await broadcast({ type => 'system', text => "$name left" });
         await send_user_list();
@@ -195,19 +199,10 @@ $app->on_startup(async sub {
         )
     });
 
-    $cleanup_timer = IO::Async::Timer::Periodic->new(
-        interval => 60,
-        on_tick  => sub {
-            (async sub {
-                await pg_query(q{
-                    DELETE FROM chat_users
-                    WHERE last_seen < NOW() - INTERVAL '2 minutes'
-                });
-            })->()->else(sub { Future->done })->retain;
-        }
-    );
-    $loop->add($cleanup_timer);
-    $cleanup_timer->start;
+    # Stale-user cleanup, every 60s. Same Future::IO approach as the
+    # heartbeat above, started here, stopped via the $shutting_down flag
+    # in on_shutdown rather than an explicit timer object.
+    cleanup_loop()->retain;
 
     # Cross-process fan-out: other server processes publish here too, so a
     # message sent to the server on :3000 reaches clients connected to :3001.
@@ -236,11 +231,62 @@ $app->on_startup(async sub {
 $app->on_shutdown(async sub {
     print "Server shutting down...\n";
 
-    $cleanup_timer->stop if $cleanup_timer;
-    $loop->remove($cleanup_timer) if $cleanup_timer;
+    $shutting_down = 1;
+
+    # Instantly wake every heartbeat/cleanup coroutine currently sleeping,
+    # instead of leaving them to notice $shutting_down up to 30-60s later.
+    for my $sleep (values %active_sleeps) {
+        $sleep->cancel unless $sleep->is_ready;
+    }
+
+    # Cancelling sleeps stops *new*  queries from starting, but doesn't
+    # touch a query already sent to Postgres, wait (up to 5s) for those
+    # to actually get a response and  resolve their Future normally, so
+    # we don't disconnect out from under one and risk the same class of
+    # use-after-free during global destruction.
+    await wait_for_inflight_queries();
+
     eval { $pubsub->unlisten('chat_messages') };
     eval { $pg->db->disconnect };
 });
+
+async sub heartbeat_loop ($id) {
+    while ($clients->{$id} && !$shutting_down) {
+        my $sleep = Future::IO->sleep(30);
+        $active_sleeps{"heartbeat:$id"} = $sleep;
+        eval { await $sleep };
+        delete $active_sleeps{"heartbeat:$id"};
+
+        last if $shutting_down;
+        last unless $clients->{$id};
+
+        eval {
+            await pg_query(q{
+                UPDATE chat_users
+                SET last_seen = NOW()
+                WHERE session_id = ?
+            }, $id);
+        };
+    }
+}
+
+async sub cleanup_loop {
+    while (!$shutting_down) {
+        my $sleep = Future::IO->sleep(60);
+        $active_sleeps{cleanup} = $sleep;
+        eval { await $sleep };
+        delete $active_sleeps{cleanup};
+
+        last if $shutting_down;
+
+        eval {
+            await pg_query(q{
+                DELETE FROM chat_users
+                WHERE last_seen < NOW() - INTERVAL '2 minutes'
+            });
+        };
+    }
+}
 
 async sub broadcast ($msg, $exclude_id = undef) {
     my $payload = { %$msg, _process_id => $process_id };
